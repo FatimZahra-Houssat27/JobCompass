@@ -1,0 +1,156 @@
+# JobCompass - Cluster Big Data simulé avec Docker
+# HDFS (1 NameNode + 2 DataNodes) | Spark (1 Master + 2 Workers) | Kafka (KRaft) | Producteurs
+# Version allégée : fonctionne sur un PC de 8 Go de RAM (voir README)
+name: jobcompass
+
+x-hadoop: &hadoop
+  image: apache/hadoop:3.3.6
+  user: root
+  env_file: ./infra/hadoop.env
+  networks: [bigdata]
+
+x-spark-worker: &spark-worker
+  image: apache/spark:3.5.1
+  depends_on: [spark-master]
+  environment:
+    SPARK_DAEMON_MEMORY: 256m
+  networks: [bigdata]
+
+services:
+  # ---------------- Stockage : HDFS ----------------
+  namenode:
+    <<: *hadoop
+    container_name: namenode
+    hostname: namenode
+    command: ["hdfs", "namenode"]
+    environment:
+      ENSURE_NAMENODE_DIR: /hadoop/dfs/name   # formate HDFS au tout premier démarrage
+    ports: ["9870:9870"]                      # interface web HDFS
+    volumes: [nn-data:/hadoop/dfs]
+
+  datanode1:
+    <<: *hadoop
+    container_name: datanode1
+    hostname: datanode1
+    command: ["hdfs", "datanode"]
+    depends_on: [namenode]
+    volumes: [dn1-data:/hadoop/dfs]
+
+  datanode2:
+    <<: *hadoop
+    container_name: datanode2
+    hostname: datanode2
+    command: ["hdfs", "datanode"]
+    depends_on: [namenode]
+    volumes: [dn2-data:/hadoop/dfs]
+
+  # ---------------- Traitement : Spark ----------------
+  spark-master:
+    image: apache/spark:3.5.1
+    container_name: spark-master
+    hostname: spark-master
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
+    environment:
+      SPARK_DAEMON_MEMORY: 256m
+    ports: ["8080:8080", "4040:4040"]         # UI master + UI de l'application en cours
+    volumes:
+      - ./batch:/opt/jobs/batch
+      - ./streaming:/opt/jobs/streaming
+      - ./infra/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+    networks: [bigdata]
+
+  spark-worker-1:
+    <<: *spark-worker
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker",
+              "spark://spark-master:7077", "--cores", "1", "--memory", "768m"]
+
+  spark-worker-2:
+    <<: *spark-worker
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker",
+              "spark://spark-master:7077", "--cores", "1", "--memory", "768m"]
+
+  # ---------------- Ingestion : Kafka (mode KRaft, sans Zookeeper) ----------------
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kafka
+    hostname: kafka
+    ports: ["29092:29092"]                    # accès depuis le PC : localhost:29092
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_HEAP_OPTS: "-Xms384m -Xmx384m"    # mémoire limitée (PC 8 Go)
+    healthcheck:                              # test léger : le port 9092 répond-il ?
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 10s
+      timeout: 30s
+      retries: 10
+      start_period: 90s
+    networks: [bigdata]
+
+  # Crée les topics une fois Kafka prêt, puis s'arrête
+  init-topics:
+    image: apache/kafka:3.7.0
+    container_name: init-topics
+    depends_on:
+      kafka: {condition: service_healthy}
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx128m"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        for t in job-offers candidate-interactions; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --create --if-not-exists --topic $$t --partitions 3 --replication-factor 1
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+    networks: [bigdata]
+
+  # ---------------- Producteurs (profil "producers", lancés à la demande) ----------------
+  producer-offers:
+    build: ./ingestion
+    image: jobcompass-producer:1.0
+    container_name: producer-offers
+    profiles: [producers]
+    command: ["producer_offers.py"]
+    env_file: [.env]
+    volumes: [./data:/data:ro]
+    depends_on:
+      init-topics: {condition: service_completed_successfully}
+    networks: [bigdata]
+
+  producer-interactions:
+    build: ./ingestion
+    image: jobcompass-producer:1.0
+    container_name: producer-interactions
+    profiles: [producers]
+    command: ["producer_interactions.py", "--mode", "live"]
+    env_file: [.env]
+    volumes: [./data:/data:ro]
+    depends_on:
+      init-topics: {condition: service_completed_successfully}
+    networks: [bigdata]
+
+volumes:          # un volume persistant distinct par nœud HDFS
+  nn-data:
+  dn1-data:
+  dn2-data:
+
+networks:
+  bigdata:
+    driver: bridge
