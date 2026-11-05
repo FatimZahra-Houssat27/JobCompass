@@ -205,11 +205,4 @@ docker compose down -v                    # tout supprimer, y compris les volume
 Dataset **Djinni Recruitment Dataset** (offres et profils candidats anonymisés, en anglais), licence MIT.
 Les interactions candidat ↔ offre sont **simulées** : voir [`docs/donnees.md`](docs/donnees.md).
 
-## Équipe
 
-| Membre | Contributions |
-|---|---|
-| Fatima Azzahra HOUSSAT | Livrable 1 : architecture, cluster Docker (HDFS, Spark, Kafka), générateur d'interactions, producteurs Kafka, archivage Kafka → HDFS, validations, documentation |
-| À compléter | |
-| À compléter | |
-| À compléter | |
