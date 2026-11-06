@@ -9,14 +9,6 @@ en temps réel avec **Spark Structured Streaming**. Le tout tourne sur un cluste
 
 ![Architecture](docs/architecture.png)
 
-## État d'avancement
-
-| Livrable | Contenu | État |
-|---|---|---|
-| 1 | Cluster Docker (HDFS, Spark, Kafka), architecture, couche d'ingestion Kafka → HDFS | ✅ Réalisé |
-| 2 | Indicateurs batch (Spark SQL) | ⏳ À venir |
-| 3 | Pipeline ML (ALS, TF-IDF, popularité), évaluation, tuning | ⏳ À venir |
-| 4 | Inférence temps réel, base de restitution, tableau de bord | ⏳ À venir |
 
 ## Pile technique (versions fixées)
 
