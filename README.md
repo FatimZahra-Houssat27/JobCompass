@@ -197,4 +197,291 @@ docker compose down -v                    # tout supprimer, y compris les volume
 Dataset **Djinni Recruitment Dataset** (offres et profils candidats anonymisés, en anglais), licence MIT.
 Les interactions candidat ↔ offre sont **simulées** : voir [`docs/donnees.md`](docs/donnees.md).
 
+# Livrable 2 — Analyse batch avec Spark SQL
 
+## 1. Objectif du livrable
+
+L'objectif de ce livrable est de réaliser une analyse batch des données historiques du projet JobCompass à l'aide de **Apache Spark** et **Spark SQL**.
+
+Les traitements permettent de calculer plusieurs indicateurs à partir des interactions des utilisateurs avec les offres d'emploi, puis de sauvegarder les résultats dans HDFS au format Parquet.
+
+Les indicateurs étudiés sont :
+
+- L'évolution mensuelle de l'activité.
+- La répartition des interactions par type.
+- Le classement des dix offres ayant reçu le plus d'interactions.
+
+## 2. Environnement technique
+
+Les technologies utilisées pour réaliser ce livrable sont :
+
+- **Apache Spark 3.5.1** : traitement distribué des données.
+- **Spark SQL** : analyse et agrégation des données.
+- **HDFS** : stockage distribué des données et des résultats.
+- **Docker** : exécution des différents services dans des conteneurs.
+- **Python / PySpark** : développement des scripts de traitement.
+- **Format Parquet** : stockage des indicateurs calculés.
+
+### Architecture du cluster
+
+Le cluster utilisé est composé de :
+
+- Un Spark Master.
+- Deux Spark Workers.
+- Un NameNode HDFS.
+- Deux DataNodes HDFS.
+
+Les deux Workers sont actifs et connectés au Master.
+
+### Captures d'écran
+
+**Figure 1 — État du cluster Spark**
+
+![Cluster Spark](docs/preuves/livrable2/cluster%20spark.png)
+
+**Figure 2 — Applications Spark exécutées avec succès**
+
+![Applications Spark terminées](docs/preuves/livrable2/cluster%20spark2.png)
+
+## 3. Organisation des scripts batch
+
+Les scripts développés pour ce livrable se trouvent dans le dossier `batch/` :
+
+```text
+batch/
+├── analysis.py
+├── interaction_types.py
+└── top_jobs.py
+```
+
+Chaque script réalise un traitement spécifique sur les données historiques stockées dans HDFS.
+
+Les traitements utilisent les données antérieures au 1er janvier 2024.
+
+## 4. Indicateur 1 — Évolution mensuelle de l'activité
+
+### Objectif
+
+Analyser l'évolution du nombre d'interactions enregistrées chaque mois afin d'identifier les périodes de forte et de faible activité.
+
+### Traitement réalisé
+
+Le script utilisé est :
+
+```text
+batch/analysis.py
+```
+
+Il réalise les opérations suivantes :
+
+1. Lecture des données historiques depuis HDFS.
+2. Filtrage des interactions antérieures au 1er janvier 2024.
+3. Regroupement des interactions par mois.
+4. Calcul du nombre total d'interactions pour chaque mois.
+5. Sauvegarde du résultat au format Parquet dans HDFS.
+
+### Exécution
+
+```bash
+docker exec spark-master /opt/spark/bin/spark-submit /opt/jobs/batch/analysis.py
+```
+
+### Résultat obtenu
+
+La période analysée s'étend de décembre 2019 à octobre 2023.
+
+Le mois de novembre 2021 représente le pic d'activité avec **7 829 interactions**.
+
+### Interprétation
+
+Cet indicateur permet d'observer l'évolution de l'activité des utilisateurs au fil du temps. Le pic enregistré en novembre 2021 indique une période particulièrement active sur la plateforme.
+
+**Figure 3 — Résultats de l'activité mensuelle**
+
+![Activité mensuelle](docs/preuves/livrable2/03_monthly_activity.png)
+
+**Figure 4 — Affichage des résultats de l'activité mensuelle**
+
+![Détails activité mensuelle](docs/preuves/livrable2/04_monthly_activity.png)
+
+**Figure 5 — Vérification de la sauvegarde dans HDFS**
+
+![Activité mensuelle dans HDFS](docs/preuves/livrable2/04_monthly_activity_hdfs.png)
+
+## 5. Indicateur 2 — Répartition des interactions par type
+
+### Objectif
+
+Étudier la répartition des interactions des utilisateurs selon leur type :
+
+- `view` : consultation d'une offre.
+- `save` : sauvegarde d'une offre.
+- `apply` : candidature à une offre.
+
+### Traitement réalisé
+
+Le script utilisé est :
+
+```text
+batch/interaction_types.py
+```
+
+Il effectue les opérations suivantes :
+
+1. Lecture des interactions historiques depuis HDFS.
+2. Filtrage des données antérieures au 1er janvier 2024.
+3. Regroupement des interactions par type.
+4. Calcul du nombre d'interactions pour chaque type.
+5. Calcul du pourcentage de chaque type par rapport au total.
+6. Sauvegarde des résultats dans HDFS au format Parquet.
+
+### Exécution
+
+```bash
+docker exec spark-master /opt/spark/bin/spark-submit /opt/jobs/batch/interaction_types.py
+```
+
+### Résultats obtenus
+
+Le nombre total d'interactions analysées est de **200 000**.
+
+| Type d'interaction | Nombre | Pourcentage |
+|---|---:|---:|
+| view | 114 998 | 57,50 % |
+| apply | 49 363 | 24,68 % |
+| save | 35 639 | 17,82 % |
+| **Total** | **200 000** | **100 %** |
+
+### Interprétation
+
+Les consultations (`view`) représentent la majorité des interactions avec 57,50 % du total.
+
+Les candidatures (`apply`) représentent 24,68 %, tandis que les sauvegardes (`save`) représentent 17,82 %.
+
+Cela montre que les utilisateurs consultent davantage les offres que les autres actions proposées sur la plateforme.
+
+**Figure 6 — Répartition des interactions par type**
+
+![Répartition des interactions](docs/preuves/livrable2/05_interaction_types.png)
+
+**Figure 7 — Vérification de la sauvegarde des interactions dans HDFS**
+
+![Interactions dans HDFS](docs/preuves/livrable2/06_interaction_types_hdfs.png)
+
+## 6. Indicateur 3 — Top 10 des offres les plus populaires
+
+### Objectif
+
+Identifier les dix offres d'emploi qui ont reçu le plus grand nombre d'interactions.
+
+### Traitement réalisé
+
+Le script utilisé est :
+
+```text
+batch/top_jobs.py
+```
+
+Il réalise les opérations suivantes :
+
+1. Lecture des interactions historiques depuis HDFS.
+2. Filtrage des interactions antérieures au 1er janvier 2024.
+3. Regroupement des interactions par identifiant d'offre (`job_id`).
+4. Calcul du nombre total d'interactions pour chaque offre.
+5. Calcul du nombre de consultations (`views`), de sauvegardes (`saves`) et de candidatures (`applications`).
+6. Tri des offres par nombre total d'interactions décroissant.
+7. Sélection des dix premières offres.
+8. Sauvegarde du résultat dans HDFS au format Parquet.
+
+### Exécution
+
+```bash
+docker exec spark-master /opt/spark/bin/spark-submit /opt/jobs/batch/top_jobs.py
+```
+
+### Résultat obtenu
+
+L'offre la plus populaire identifiée est :
+
+| Indicateur | Valeur |
+|---|---:|
+| Identifiant de l'offre | `54f060f2-9205-5658-b638-dd25e5ed56d3` |
+| Nombre total d'interactions | 1 706 |
+| Consultations | 909 |
+| Sauvegardes | 328 |
+| Candidatures | 469 |
+
+### Interprétation
+
+Cette analyse permet d'identifier les offres qui suscitent le plus d'intérêt auprès des utilisateurs.
+
+L'offre présentée ci-dessus arrive en première position avec 1 706 interactions. Elle a enregistré 909 consultations, 328 sauvegardes et 469 candidatures.
+
+Cet indicateur peut aider à comprendre les offres les plus attractives sur la plateforme.
+
+**Figure 8 — Classement des dix offres les plus populaires**
+
+![Top 10 des offres](docs/preuves/livrable2/07_top_jobs.png)
+
+## 7. Organisation des résultats dans HDFS
+
+Les résultats des trois traitements batch sont sauvegardés dans HDFS au format Parquet.
+
+L'organisation des résultats est la suivante :
+
+```text
+/jobcompass/
+└── indicators/
+    ├── monthly_activity/
+    ├── interaction_types/
+    └── top_jobs/
+```
+
+Chaque dossier contient :
+
+- Un fichier `_SUCCESS` indiquant que l'écriture du résultat s'est terminée avec succès.
+- Un ou plusieurs fichiers `part-...snappy.parquet` contenant les données calculées.
+
+### Vérification des résultats dans HDFS
+
+Les commandes suivantes permettent de vérifier la présence des résultats :
+
+```bash
+docker exec namenode hdfs dfs -ls /jobcompass/indicators/monthly_activity
+```
+
+```bash
+docker exec namenode hdfs dfs -ls /jobcompass/indicators/interaction_types
+```
+
+```bash
+docker exec namenode hdfs dfs -ls /jobcompass/indicators/top_jobs
+```
+
+Les trois dossiers de résultats ont été créés avec succès dans HDFS.
+
+## 8. Documentation des indicateurs
+
+Les indicateurs calculés sont expliqués dans le fichier :
+
+```text
+docs/indicateurs.md
+```
+
+Ce document présente les objectifs de chaque indicateur, les résultats obtenus, leur interprétation et leurs limites.
+
+## 9. Bilan du Livrable 2
+
+Ce livrable a permis de mettre en place et d'exécuter une chaîne de traitement batch avec Apache Spark et HDFS.
+
+Les trois scripts PySpark ont été exécutés avec succès et les résultats ont été sauvegardés dans HDFS au format Parquet.
+
+Les principaux résultats obtenus sont :
+
+- Analyse de l'évolution mensuelle de l'activité.
+- Identification de novembre 2021 comme le mois le plus actif, avec 7 829 interactions.
+- Analyse de 200 000 interactions et calcul de leur répartition par type.
+- Identification des dix offres ayant reçu le plus d'interactions.
+- Sauvegarde et vérification des résultats dans HDFS.
+
+**Conclusion :** le Livrable 2 a permis de réaliser une analyse batch des données historiques de JobCompass, de produire des indicateurs utiles à la compréhension de l'activité de la plateforme et de stocker les résultats dans le système distribué HDFS.
