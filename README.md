@@ -476,9 +476,66 @@ Les taux de sauvegarde et de candidature permettent également d'étudier l'enga
 
 Ces indicateurs peuvent aider à identifier les catégories de postes qui attirent le plus les candidats et celles qui génèrent davantage de candidatures.
 
+## 8. Visualisation des résultats
 
+### Objectif
 
-## 8. Organisation des résultats dans HDFS
+Afin de faciliter l'interprétation des indicateurs calculés avec Spark SQL, des visualisations graphiques ont été réalisées à l'aide de Python et de la bibliothèque Matplotlib.
+
+Ces graphiques permettent de représenter les résultats des traitements batch et de mieux comprendre les tendances observées dans les interactions des utilisateurs.
+
+### Graphiques réalisés
+
+Les visualisations développées sont les suivantes :
+
+1. **Évolution mensuelle de l'activité** : graphique linéaire représentant le nombre d'interactions enregistrées chaque mois.
+2. **Répartition des interactions par type** : graphique comparant les consultations (`view`), les sauvegardes (`save`) et les candidatures (`apply`).
+3. **Top 10 des offres les plus consultées** : classement des offres selon leur nombre de consultations.
+4. **Top 10 des offres les plus sauvegardées** : classement des offres selon leur nombre de sauvegardes.
+5. **Top 10 des offres ayant reçu le plus de candidatures** : classement selon le nombre de candidatures.
+6. **Comparaison des types d'interactions** : représentation des volumes de consultations, de sauvegardes et de candidatures sous forme de graphique.
+
+### Technologies utilisées
+
+- **Python** : traitement des résultats et génération des graphiques.
+- **Matplotlib** : création des visualisations.
+- **PySpark** : lecture des indicateurs calculés et stockés dans HDFS.
+- **Parquet** : format de stockage des résultats utilisés pour les graphiques.
+
+### Interprétation
+
+Les graphiques permettent de compléter les tableaux de résultats en facilitant la comparaison entre les différentes catégories d'interactions et les offres d'emploi.
+
+Ils rendent également plus visibles les tendances temporelles et les différences de popularité entre les offres.
+
+Les fichiers graphiques sont enregistrés au format PNG et peuvent être utilisés dans la documentation du projet.
+### Figures des visualisations
+
+**Figure 10 — Évolution mensuelle de l'activité**
+
+![Évolution mensuelle](visualizations/01_monthly_activity.png)
+
+**Figure 11 — Répartition des interactions**
+
+![Répartition](visualizations/02_interaction_distribution.png)
+
+**Figure 12 — Top des offres consultées**
+
+![Offres consultées](visualizations/03_top_viewed_jobs.png)
+
+**Figure 13 — Top des offres sauvegardées**
+
+![Offres sauvegardées](visualizations/04_top_saved_jobs.png)
+
+**Figure 14 — Top des offres ayant reçu des candidatures**
+
+![Candidatures](visualizations/05_top_applied_jobs.png)
+
+**Figure 15 — Comparaison des interactions**
+
+![Comparaison](visualizations/06_conversion_funnel.png)
+
+## 9. Organisation des résultats dans HDFS
 
 Les résultats des trois traitements batch sont sauvegardés dans HDFS au format Parquet.
 
@@ -515,7 +572,7 @@ docker exec namenode hdfs dfs -ls /jobcompass/indicators/top_jobs
 
 Les trois dossiers de résultats ont été créés avec succès dans HDFS.
 
-## 9. Documentation des indicateurs
+## 10. Documentation des indicateurs
 
 Les indicateurs calculés sont expliqués dans le fichier :
 
@@ -525,7 +582,7 @@ docs/indicateurs.md
 
 Ce document présente les objectifs de chaque indicateur, les résultats obtenus, leur interprétation et leurs limites.
 
-## 10. Bilan du Livrable 2
+## 11. Bilan du Livrable 2
 
 Ce livrable a permis de mettre en place et d'exécuter une chaîne de traitement batch avec Apache Spark et HDFS.
 
