@@ -19,14 +19,32 @@ inter = (
 inter.createOrReplaceTempView("interactions")
 
 # 2. Lecture des références
-spark.read.parquet(
-    f"{HDFS}/reference/jobs"
-).createOrReplaceTempView("jobs")
+jobs = spark.read.parquet(f"{HDFS}/reference/jobs")
+jobs.createOrReplaceTempView("jobs")
 
-spark.read.parquet(
-    f"{HDFS}/reference/candidates"
-).createOrReplaceTempView("candidates")
+candidates = spark.read.parquet(f"{HDFS}/reference/candidates")
+candidates.createOrReplaceTempView("candidates")
+# Diagnostic de la structure des données
 
+print("=== SCHEMA INTERACTIONS ===")
+inter.printSchema()
+
+print("=== SCHEMA JOBS ===")
+jobs = spark.read.parquet(f"{HDFS}/reference/jobs")
+jobs.printSchema()
+
+print("=== SCHEMA CANDIDATES ===")
+candidates = spark.read.parquet(f"{HDFS}/reference/candidates")
+candidates.printSchema()
+
+print("=== EXEMPLES INTERACTIONS ===")
+inter.show(5, truncate=False)
+
+print("=== EXEMPLES JOBS ===")
+jobs.show(5, truncate=False)
+
+print("=== EXEMPLES CANDIDATES ===")
+candidates.show(5, truncate=False)
 # 3. Analyse SQL : activité mensuelle
 df = spark.sql("""
     SELECT

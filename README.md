@@ -422,8 +422,63 @@ Cet indicateur peut aider à comprendre les offres les plus attractives sur la p
 **Figure 8 — Classement des dix offres les plus populaires**
 
 ![Top 10 des offres](docs/preuves/livrable2/07_top_jobs.png)
+## 7. Indicateur 4 — Analyse des performances par poste
 
-## 7. Organisation des résultats dans HDFS
+### Objectif
+
+Analyser les interactions des utilisateurs selon le poste proposé dans les offres d'emploi afin d'identifier les catégories de postes qui suscitent le plus d'intérêt.
+
+### Traitement réalisé
+
+Le script utilisé est :
+
+```text
+batch/job_position_analysis.py
+```
+
+Il réalise les opérations suivantes :
+
+1. Lecture des interactions historiques depuis HDFS.
+2. Lecture des offres d'emploi depuis HDFS.
+3. Jointure entre les interactions et les offres à partir de `job_id` et `id`.
+4. Regroupement des résultats selon le poste (`Position`).
+5. Calcul du nombre total d'interactions, de consultations, de sauvegardes et de candidatures.
+6. Calcul du taux de sauvegarde et du taux de candidature par rapport au nombre de consultations.
+7. Sauvegarde des résultats dans HDFS au format Parquet.
+
+### Exécution
+
+```bash
+docker exec spark-master /opt/spark/bin/spark-submit /opt/jobs/batch/job_position_analysis.py
+```
+### Capture d'écran des résultats
+
+**Figure 9 — Résultats de l'analyse des performances par poste**
+
+![Analyse des performances par poste](docs/preuves/livrable2/08_job_position_analysis.png)
+
+### Analyse des taux
+
+Deux indicateurs supplémentaires sont calculés :
+
+- **Taux de sauvegarde** : rapport entre le nombre de sauvegardes et le nombre de consultations.
+- **Taux de candidature** : rapport entre le nombre de candidatures et le nombre de consultations.
+
+Par exemple, pour le poste Project Manager, le taux de sauvegarde est de 35,49 % et le taux de candidature est de 52,92 %.
+
+### Interprétation
+
+Cette analyse permet de constater que l'intérêt des utilisateurs varie selon les postes proposés.
+
+Le poste Project Manager présente le plus grand nombre d'interactions parmi les résultats affichés. Le poste QA Engineer arrive en deuxième position, suivi de Senior React Developer.
+
+Les taux de sauvegarde et de candidature permettent également d'étudier l'engagement des utilisateurs au-delà du simple nombre de consultations.
+
+Ces indicateurs peuvent aider à identifier les catégories de postes qui attirent le plus les candidats et celles qui génèrent davantage de candidatures.
+
+
+
+## 8. Organisation des résultats dans HDFS
 
 Les résultats des trois traitements batch sont sauvegardés dans HDFS au format Parquet.
 
@@ -460,7 +515,7 @@ docker exec namenode hdfs dfs -ls /jobcompass/indicators/top_jobs
 
 Les trois dossiers de résultats ont été créés avec succès dans HDFS.
 
-## 8. Documentation des indicateurs
+## 9. Documentation des indicateurs
 
 Les indicateurs calculés sont expliqués dans le fichier :
 
@@ -470,7 +525,7 @@ docs/indicateurs.md
 
 Ce document présente les objectifs de chaque indicateur, les résultats obtenus, leur interprétation et leurs limites.
 
-## 9. Bilan du Livrable 2
+## 10. Bilan du Livrable 2
 
 Ce livrable a permis de mettre en place et d'exécuter une chaîne de traitement batch avec Apache Spark et HDFS.
 
