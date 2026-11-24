@@ -572,17 +572,8 @@ docker exec namenode hdfs dfs -ls /jobcompass/indicators/top_jobs
 
 Les trois dossiers de résultats ont été créés avec succès dans HDFS.
 
-## 10. Documentation des indicateurs
 
-Les indicateurs calculés sont expliqués dans le fichier :
-
-```text
-docs/indicateurs.md
-```
-
-Ce document présente les objectifs de chaque indicateur, les résultats obtenus, leur interprétation et leurs limites.
-
-## 11. Bilan du Livrable 2
+## 10. Bilan du Livrable 2
 
 Ce livrable a permis de mettre en place et d'exécuter une chaîne de traitement batch avec Apache Spark et HDFS.
 
