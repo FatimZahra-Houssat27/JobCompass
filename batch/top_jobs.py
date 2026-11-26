@@ -26,9 +26,24 @@ top = (
     .orderBy(F.desc("nb_interactions"))
     .limit(10)
 )
+# Ajout des noms des offres (jointure avec les données de référence)
+jobs = (
+    spark.read.parquet(f"{HDFS}/reference/jobs/jobs.parquet")
+    .select(F.col("id").alias("job_id"),
+            F.col("Position").alias("position"),
+            F.col("Company Name").alias("company"))
+    .dropDuplicates(["job_id"])
+)
 
+top = (
+    top.join(jobs, on="job_id", how="left")
+    .withColumn("label", F.concat_ws(" – ", "position", "company"))
+    .select("label", "position", "company", "nb_interactions",
+            "nb_views", "nb_saves", "nb_applications", "job_id")
+    .orderBy(F.desc("nb_interactions"))
+)
 print("=== TOP 10 DES OFFRES LES PLUS POPULAIRES ===")
-top.show(10, truncate=False)
+top.drop("job_id").show(10, truncate=45)
 
 # Sauvegarde dans HDFS
 top.coalesce(1).write \
